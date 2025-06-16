@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+log/
+pretrained_models/*.pt
+pretrained_models/sd-vae-ft-*
+sample.png
