@@ -7,6 +7,7 @@ __pycache__/
 *.pywz
 *.pyzw
 *.pyzwz
+*.pb
 log/
 pretrained_models/*.pt
 pretrained_models/sd-vae-ft-*
