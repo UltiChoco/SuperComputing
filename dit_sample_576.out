@@ -1,0 +1,13 @@
+no change     /work/sustcsc_11/miniconda3/condabin/conda
+no change     /work/sustcsc_11/miniconda3/bin/conda
+no change     /work/sustcsc_11/miniconda3/bin/conda-env
+no change     /work/sustcsc_11/miniconda3/bin/activate
+no change     /work/sustcsc_11/miniconda3/bin/deactivate
+no change     /work/sustcsc_11/miniconda3/etc/profile.d/conda.sh
+no change     /work/sustcsc_11/miniconda3/etc/fish/conf.d/conda.fish
+no change     /work/sustcsc_11/miniconda3/shell/condabin/Conda.psm1
+no change     /work/sustcsc_11/miniconda3/shell/condabin/conda-hook.ps1
+no change     /work/sustcsc_11/miniconda3/lib/python3.13/site-packages/xontrib/conda.xsh
+no change     /work/sustcsc_11/miniconda3/etc/profile.d/conda.csh
+no change     /work/sustcsc_11/.bashrc
+No action taken.

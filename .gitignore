@@ -8,7 +8,7 @@ __pycache__/
 *.pyzw
 *.pyzwz
 *.pb
-log/
 pretrained_models/*.pt
 pretrained_models/sd-vae-ft-*
-sample.png
+*.swp
+*.log

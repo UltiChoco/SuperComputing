@@ -12,7 +12,7 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 from torchvision.utils import save_image
 from diffusion import create_diffusion
-from diffusers.models import AutoencoderKL
+from diffusers import AutoencoderKL
 from pretrained_models.download import find_model
 from models import DiT_models
 import argparse
@@ -58,12 +58,27 @@ def main(args):
     y = torch.cat([y, y_null], 0)
     model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
 
-    # Sample images:
-    samples = diffusion.p_sample_loop(
-        model.forward_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=device
-    )
-    samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
-    samples = vae.decode(samples / 0.18215).sample
+    with torch.profiler.profile(
+        activities=[
+            torch.profiler.ProfilerActivity.CPU,  # CPU性能分析
+            torch.profiler.ProfilerActivity.CUDA  # GPU性能分析
+        ],
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),  # 控制采样时间
+        on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),  # 保存性能数据到log文件
+        record_shapes=True, 
+        profile_memory=True,  
+        with_stack=True  
+    ) as prof:
+
+            # Sample images:
+            samples = diffusion.p_sample_loop(
+            model.forward_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=device
+            )
+            samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
+            samples = vae.decode(samples / 0.18215).sample
+
+            # Record profiler step
+            prof.step()
 
     # Save and display images:
     save_image(samples, "sample.png", nrow=4, normalize=True, value_range=(-1, 1))
@@ -81,4 +96,4 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt", type=str, default=None,
                         help="Optional path to a DiT checkpoint (default: auto-download a pre-trained DiT-XL/2 model).")
     args = parser.parse_args()
-    main(args)
+    main(args) 
