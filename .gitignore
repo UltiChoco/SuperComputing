@@ -12,3 +12,4 @@ pretrained_models/*.pt
 pretrained_models/sd-vae-ft-*
 *.swp
 *.log
+*.pt.trace.json

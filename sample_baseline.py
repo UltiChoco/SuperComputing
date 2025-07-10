@@ -7,23 +7,54 @@
 """
 Sample new images from a pre-trained DiT.
 """
+
 import torch
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 from torchvision.utils import save_image
 from diffusion import create_diffusion
-from diffusers import AutoencoderKL
+from diffusers.models import AutoencoderKL
 from pretrained_models.download import find_model
 from models import DiT_models
 import argparse
 
 import torch.profiler
+import os
+
+# ============ 获取作业号并构造输出目录 ============ #
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
+parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")
+parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
+parser.add_argument("--num-classes", type=int, default=1000)
+parser.add_argument("--cfg-scale", type=float, default=4.0)
+parser.add_argument("--num-sampling-steps", type=int, default=250)
+parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--ckpt", type=str, default=None,
+                    help="Optional path to a DiT checkpoint (default: auto-download a pre-trained DiT-XL/2 model).")
+parser.add_argument("--job-id", type=str, default=os.environ.get("SLURM_JOB_ID", "nojob"), help="Job ID for naming outputs")
+args = parser.parse_args()
+
+job_id = args.job_id
+job_dir = os.path.join(".", f"job_{job_id}")
+log_dir = os.path.join(job_dir, f"log_{job_id}")
+os.makedirs(log_dir, exist_ok=True)
+
+# ===================================================
+
+print(">> Running sample_baseline.py with job_id =", args.job_id, flush=True)
+
 
 def main(args):
     # Setup PyTorch:
     torch.manual_seed(args.seed)
     torch.set_grad_enabled(False)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # which GPU you are using
+    print("Using device:", device, flush=True)
+    if device == "cuda":
+        print("CUDA device name:", torch.cuda.get_device_name(), flush=True)
 
     if args.ckpt is None:
         assert args.model == "DiT-XL/2", "Only DiT-XL/2 models are available for auto-download."
@@ -63,37 +94,27 @@ def main(args):
             torch.profiler.ProfilerActivity.CPU,  # CPU性能分析
             torch.profiler.ProfilerActivity.CUDA  # GPU性能分析
         ],
-        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),  # 控制采样时间
-        on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),  # 保存性能数据到log文件
-        record_shapes=True, 
-        profile_memory=True,  
-        with_stack=True  
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),  # 保存性能数据到log文件
+        record_shapes=True,
+        profile_memory=True,
+        with_stack=True
     ) as prof:
 
-            # Sample images:
-            samples = diffusion.p_sample_loop(
+        # Sample images:
+        samples = diffusion.p_sample_loop(
             model.forward_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=device
-            )
-            samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
-            samples = vae.decode(samples / 0.18215).sample
+        )
+        samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
+        samples = vae.decode(samples / 0.18215).sample
 
-            # Record profiler step
-            prof.step()
+        # Record profiler step
+        prof.step()
 
     # Save and display images:
-    save_image(samples, "sample.png", nrow=4, normalize=True, value_range=(-1, 1))
+    save_image(samples, os.path.join(job_dir, f"sample_{job_id}.png"), nrow=4, normalize=True, value_range=(-1, 1))
+    print(f"Sample image saved to: {os.path.join(job_dir, f'sample_{job_id}.png')}", flush=True)
+    print(f"Profiler logs saved to: {log_dir}", flush=True)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
-    parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")
-    parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
-    parser.add_argument("--num-classes", type=int, default=1000)
-    parser.add_argument("--cfg-scale", type=float, default=4.0)
-    parser.add_argument("--num-sampling-steps", type=int, default=250)
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--ckpt", type=str, default=None,
-                        help="Optional path to a DiT checkpoint (default: auto-download a pre-trained DiT-XL/2 model).")
-    args = parser.parse_args()
-    main(args) 
+    main(args)
