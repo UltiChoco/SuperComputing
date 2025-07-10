@@ -20,6 +20,7 @@ import argparse
 
 import torch.profiler
 import os
+import time
 
 # ============ 获取作业号并构造输出目录 ============ #
 parser = argparse.ArgumentParser()
@@ -68,11 +69,14 @@ def main(args):
         num_classes=args.num_classes
     ).to(device)
 
-    # Auto-download a pre-trained model or load a custom DiT checkpoint from train.py:
-    ckpt_path = args.ckpt or f"pretrained_models/DiT-XL-2-{args.image_size}x{args.image_size}.pt" #要加载的模型路径
-    state_dict = find_model(ckpt_path) #加载模型参数
-    model.load_state_dict(state_dict) #参数加载进模型
-    model.eval()  # important!设置模型为推理模式
+   # === 加载标准 DiT 权重 ===
+    ckpt_path = args.ckpt or f"pretrained_models/DiT-XL-2-{args.image_size}x{args.image_size}.pt"
+    print(f"Loading checkpoint from: {ckpt_path}", flush=True)
+    state_dict = find_model(ckpt_path)
+    model.load_state_dict(state_dict)
+    model.eval()
+
+
     
     # === TorchScript 编译 ===
     try:
@@ -91,6 +95,21 @@ def main(args):
 
     # Labels to condition the model with (feel free to change):
     class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
+    time_total = []
+
+    # with torch.profiler.profile(
+    #         activities=[
+    #             torch.profiler.ProfilerActivity.CPU,  # CPU性能分析
+    #             torch.profiler.ProfilerActivity.CUDA  # GPU性能分析
+    #         ],
+    #         on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),  # 保存性能数据到log文件
+    #         record_shapes=True,
+    #         profile_memory=True,
+    #         with_stack=True
+    #     ) as prof:
+
+    
+    start_time = time.time()
 
     # Create sampling noise:
     n = len(class_labels)
@@ -103,37 +122,30 @@ def main(args):
     y = torch.cat([y, y_null], 0)
     model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
 
-    # === Profiler + 混合精度推理 ===
-    with torch.profiler.profile(
-        activities=[
-            torch.profiler.ProfilerActivity.CPU,  # CPU性能分析
-            torch.profiler.ProfilerActivity.CUDA  # GPU性能分析
-        ],
-        on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),  # 保存性能数据到log文件
-        record_shapes=True,
-        profile_memory=True,
-        with_stack=True
-    ) as prof:
+    # Run sampling:
+    samples = diffusion.p_sample_loop(
+        model.forward_with_cfg,
+        z.shape,
+        z,
+        clip_denoised=False,
+        model_kwargs=model_kwargs,
+        progress=True,
+        device=device
+    )
+    samples, _ = samples.chunk(2, dim=0) # Remove null class samples
+    samples = vae.decode(samples / 0.18215).sample
+    end_time = time.time()
 
-        samples = diffusion.p_sample_loop(
-                model.forward_with_cfg,
-                z.shape,
-                z,
-                clip_denoised=False,
-                model_kwargs=model_kwargs,
-                progress=True,
-                device=device
-        )
-        samples, _ = samples.chunk(2, dim=0)
-        samples = vae.decode(samples / 0.18215).sample
+    # prof.step()
 
-        # Record profiler step
-        prof.step()
-
-    # Save and display images:
-    save_image(samples, os.path.join(job_dir, f"sample_{job_id}.png"), nrow=4, normalize=True, value_range=(-1, 1))
-    print(f"Sample image saved to: {os.path.join(job_dir, f'sample_{job_id}.png')}", flush=True)
+    time_total.append(end_time - start_time)
+    
+    out_path = os.path.join(job_dir, f"job_{job_id}.png")
+    save_image(samples, out_path, nrow=4, normalize=True, value_range=(-1, 1))
+   
+    print(f"Image saved: {out_path}", flush=True)
     print(f"Profiler logs saved to: {log_dir}", flush=True)
+    print(f"⏱️ sampling time: {end_time - start_time:.4f} seconds")
 
 
 if __name__ == "__main__":

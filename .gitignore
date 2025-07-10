@@ -13,3 +13,6 @@ pretrained_models/sd-vae-ft-*
 *.swp
 *.log
 *.pt.trace.json
+*.pth*.out
+*.err
+job_2339_TorchScript/
