@@ -1,10 +1,17 @@
 做了哪些修改？
-1、samples.py
+1、samples_01.py
     a.每一份提交的作业都会生成以作业号命名的目录，存放性能日志和生成的图像。都根据作业号命名。
     b.添加指示在使用哪个GPU，会在.out文件中显示
     c.添加profiler，在perfetto平台进行性能分析
 
 2、新增HOW_TO_RUN文档
 
-`todo`:
-## 加速加速！！！！
+3、samples_02.py
+    在samples_01.py的基础上实现数据并行：
+    a.使用 NCCL 后端进行 GPU 间通信
+    b.对应的作业提交脚本使用torchrun启动，手动指定了主节点和端口
+    c.每个GPU根据rank分配标签
+    d.每张卡两个标签
+
+
+

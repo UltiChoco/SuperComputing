@@ -4,8 +4,8 @@
 #SBATCH --error=dit_inference.err
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=4
-#SBATCH --gres=gpu:1
-#SBATCH --time=00:10:00
+#SBATCH --gres=gpu:4
+#SBATCH --time=00:30:00
 #SBATCH --partition=8v100-32
 
 # 使用conda初始化
@@ -16,7 +16,7 @@ conda activate DiT
 # 进入项目目录
 cd /work/sustcsc_11/DiT-SUSTCSC
 
-# 执行代码
-python sample_01.py --job-id ${SLURM_JOB_ID}
+# 使用 torchrun 启动4个进程（每张卡1个进程）
+torchrun --nproc_per_node=4 --master_addr=$(hostname) --master_port=29500 sample_02.py --job-id ${SLURM_JOB_ID}           
 
 

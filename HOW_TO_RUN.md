@@ -75,9 +75,7 @@ tqdm==4.66.4
 ## 4.运行步骤
 
 ### 4.1 如何启动程序
-利用`job.slurm`（作业提交脚本）提交代码，本项目中有多个优化版本的代码，若想运行某一版本，于`job.slurm`最后一行修改运行的文件。现在默认是采用的最优版本。
-注意，`baseline`代码为`sample_baseline.py`
-目前（截至提交）最优版本代码为`sample_best.py`
+利用`job_xx.slurm`（作业提交脚本）提交代码，本项目中有多个优化版本的代码，会在下文更新说明。
 
 ### 4.2 运行结果
 -每一份提交的作业都会`新生成以作业号命名的目录`，存放性能日志和生成的图像。都根据作业号命名。
@@ -85,11 +83,12 @@ tqdm==4.66.4
   结果目录结构如下：
 
   ```shell
-  <DiT-SUSTCSC>
-  ├── job_<job_id>/
-  │   ├── log_<job_id>/       # 这个目录保存了性能分析的日志文件
-  │   │   ├── <log_files>     # 包含性能日志的文件（例如：.pt.trace.json等）
-  │   └── sample_<job_id>.png # 生成的采样图片
+ <DiT-SUSTCSC>
+ ├── output                     # 存储所有作业输出的目录
+ │   ├── job_<job_id>/          # 每个作业的单独目录，包含该作业的所有相关文件
+ │       ├── log_<job_id>/      # 该目录存储性能分析的日志文件
+ │       │   └── <log_files>    # 包含性能日志的文件（例如：.pt.trace.json 等）
+ │       └── sample_<job_id>.png # 生成的采样图片
 
 ```
 
@@ -97,8 +96,16 @@ tqdm==4.66.4
 ```bash
 chmod 644 <file_path>
 ```
+### 4.3 目前版本
+-sample_baseline.py       单卡baseline                    使用job_01.slurm运行（注意更改最后一行的运行脚本名称）
+-sample_01.py             单卡添加TorchScript             使用job_01.slurm运行（注意更改最后一行的运行脚本名称）
+-sample_02.py             四卡ddp + TorchScript           使用job_02.slurm运行  
 
 
+ 😭😭😭sample_02.py还没跑，不知道行不行，没排上队😭😭😭
+ 现在只有sample_01.py确定能跑，FlashAttention还没实现✋
+
+ 🚨
 
 
 

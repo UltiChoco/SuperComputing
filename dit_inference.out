@@ -11,8 +11,73 @@ no change     /work/sustcsc_11/miniconda3/lib/python3.13/site-packages/xontrib/c
 no change     /work/sustcsc_11/miniconda3/etc/profile.d/conda.csh
 no change     /work/sustcsc_11/.bashrc
 No action taken.
->> Running sample.py with job_id = 2263
-Using device: cuda
-CUDA device name: Tesla V100-SXM2-32GB
-Sample image saved to: ./job_2263/sample_2263.png
-Profiler logs saved to: ./job_2263/log_2263
+>> Running sample_02.py with job_id =>> Running sample_02.py with job_id =>> Running sample_02.py with job_id =>> Running sample_02.py with job_id =    3035303530353035
+
+
+
+Initializing process group...
+
+===== 子进程环境变量 =====
+RANK: 2
+WORLD_SIZE: 4
+LOCAL_RANK: 2
+MASTER_ADDR: ae1u01g
+MASTER_PORT: 29500
+==========================
+
+Process group initialized.
+Initializing process group...
+
+===== 子进程环境变量 =====
+RANK: 0
+WORLD_SIZE: 4
+LOCAL_RANK: 0
+MASTER_ADDR: ae1u01g
+MASTER_PORT: 29500
+==========================
+
+Process group initialized.
+Initializing process group...
+
+===== 子进程环境变量 =====
+RANK: 3
+WORLD_SIZE: 4
+LOCAL_RANK: 3
+MASTER_ADDR: ae1u01g
+MASTER_PORT: 29500
+==========================
+
+Initializing process group...
+
+===== 子进程环境变量 =====
+RANK: 1
+WORLD_SIZE: 4
+LOCAL_RANK: 1
+MASTER_ADDR: ae1u01g
+MASTER_PORT: 29500
+==========================
+
+Process group initialized.
+Process group initialized.
+Starting rank=0, seed=0, world_size=4.
+Starting rank=2, seed=0, world_size=4.
+Starting rank=1, seed=0, world_size=4.
+Starting rank=3, seed=0, world_size=4.
+✅ TorchScript 编译成功
+✅ TorchScript 编译成功
+✅ TorchScript 编译成功
+✅ TorchScript 编译成功
+📦 脚本模型已保存
+📦 脚本模型已保存
+📦 脚本模型已保存
+📦 脚本模型已保存
+Class labels: [207, 360, 387, 974, 88, 979, 417, 279]
+Rank 2 assigned labels: [88, 979]
+Class labels: [207, 360, 387, 974, 88, 979, 417, 279]
+Rank 0 assigned labels: [207, 360]
+Class labels: [207, 360, 387, 974, 88, 979, 417, 279]
+Rank 3 assigned labels: [417, 279]
+Class labels: [207, 360, 387, 974, 88, 979, 417, 279]
+Rank 1 assigned labels: [387, 974]
+Rank 0 is saving the final image.
+⏱️ sampling time: 106.2974 seconds

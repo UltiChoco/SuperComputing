@@ -37,7 +37,8 @@ parser.add_argument("--job-id", type=str, default=os.environ.get("SLURM_JOB_ID",
 args = parser.parse_args()
 
 job_id = args.job_id
-job_dir = os.path.join(".", f"job_{job_id}")
+output_dir = '/work/sustcsc_11/DiT-SUSTCSC/output'
+job_dir = os.path.join(output_dir, f"job_{job_id}")
 log_dir = os.path.join(job_dir, f"log_{job_id}")
 os.makedirs(log_dir, exist_ok=True)
 

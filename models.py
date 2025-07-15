@@ -15,6 +15,8 @@ import numpy as np
 import math
 from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
 from typing import Optional
+from torch.jit import ignore
+
 
 
 def modulate(x, shift, scale):
@@ -249,7 +251,7 @@ class DiT(nn.Module):
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 
-    @torch.jit.export
+    @ignore
     def forward_with_cfg(self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor, cfg_scale: float) -> torch.Tensor:
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
