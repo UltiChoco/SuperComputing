@@ -11,6 +11,7 @@ from models import DiT_models
 import argparse
 import os
 import time
+from torch import autocast
 
 # ============ 获取作业号并构造输出目录 ============ #
 parser = argparse.ArgumentParser()
@@ -72,28 +73,45 @@ def main(args):
     
     # Load model:
     latent_size = args.image_size // 8
-    model = DiT_models[args.model](
-        input_size=latent_size,
-        num_classes=args.num_classes
-    ).to(device)
-
-    # Auto-download a pre-trained model or load a custom DiT checkpoint from train.py:
-    ckpt_path = args.ckpt or f"pretrained_models/DiT-XL-2-{args.image_size}x{args.image_size}.pt"
-    state_dict = find_model(ckpt_path)
-    model.load_state_dict(state_dict)
-    model.eval()  # important!
-
-    # === TorchScript 编译 ===
+    # 先尝试加载 TorchScript 模型（优先逻辑）
+    saved_scripted_model_path = '/work/sustcsc_11/DiT-SUSTCSC/pretrained_models/DiT-XL-2_scripted.pt'
     try:
-        scripted_model = torch.jit.script(model)
-        print("✅ TorchScript 编译成功")
-        # 保存脚本模型
-        torch.jit.save(scripted_model, os.path.join(job_dir, f"{args.model.replace('/', '-')}_scripted.pt"))
-        print("📦 脚本模型已保存")
-        model = scripted_model
+        # 直接加载编译好的模型
+        model = torch.jit.load(saved_scripted_model_path)
+        model.to(device)
+        model.eval()
+        print("✅ 成功加载已编译的 TorchScript 模型，无需再次编译")
     except Exception as e:
-        print("❌ TorchScript 编译失败:", e)
-        return
+        print("❌ 加载已用 TorchScript 编译的模型失败，将加载原始模型并编译:", e)
+    
+        # 加载原始模型结构和权重
+        model = DiT_models[args.model](
+            input_size=latent_size,
+            num_classes=args.num_classes
+        ).to(device)
+        ckpt_path = args.ckpt or f"pretrained_models/DiT-XL-2-{args.image_size}x{args.image_size}.pt"
+        state_dict = find_model(ckpt_path)
+        model.load_state_dict(state_dict)
+        model.eval()
+    
+        # 重新编译并保存
+        model = torch.jit.script(model)
+        torch.jit.save(model, saved_scripted_model_path)
+        print("✅ 已重新编译并保存 TorchScript 模型")
+
+    # 尝试torch.compile编译模型
+    try:
+            model = torch.compile(
+                model,
+                mode="max-autotune",
+                backend="inductor",
+                fullgraph=True,       # 尝试将模型转换为单张计算图（进一步优化算子融合）
+                dynamic=False         # 固定输入形状（DiT 输入形状固定，适合关闭动态模式）
+            )
+            print("✅ 已重新编译 torch.compile 编译的模型")
+    
+    except Exception as e:
+        print("❌ 编译模型失败，使用TorchScript编译的模型:", e)
     
     diffusion = create_diffusion(str(args.num_sampling_steps))
     vae = AutoencoderKL.from_pretrained(f"pretrained_models/sd-vae-ft-{args.vae}").to(device)
@@ -130,31 +148,29 @@ def main(args):
         model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
         
         # Run sampling:
-        samples = diffusion.p_sample_loop(
-            model.forward_with_cfg,
-            z.shape,
-            z,
-            clip_denoised=False,
-            model_kwargs=model_kwargs,
-            progress=True,
-            device=device
-       )
-        
-        samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
-        samples = vae.decode(samples / 0.18215).sample
+        with autocast("cuda",enabled = True):
+            samples = diffusion.p_sample_loop(
+                model.forward_with_cfg,
+                z.shape,
+                z,
+                clip_denoised=False,
+                model_kwargs=model_kwargs,
+                progress=True,
+                device=device
+            )
+            
+            samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
+            samples = vae.decode(samples / 0.18215).sample
         
         for i, sample in enumerate(samples):
             img_path = os.path.join(sample_folder_dir, f"rank{rank}_img{i}.png")
             save_image(sample, img_path, normalize=True, value_range=(-1, 1))
 
-    # 同步所有进程
-    dist.barrier()
     end_time = time.time()
     
-    # 在rank == 0 拼接图像并保存
+    # 在rank == 0 保存
     if rank == 0:
-        print(f"Rank {rank} is saving the final image.")
-        # 使用 make_grid 拼接图像
+        print(f"Rank {rank} is saving the final images.")
         print(f"⏱️ sampling time: {end_time - start_time:.4f} seconds")
 
     dist.barrier()

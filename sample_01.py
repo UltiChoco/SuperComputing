@@ -21,6 +21,7 @@ import argparse
 import torch.profiler
 import os
 import time
+from torch import autocast
 
 # ============ 获取作业号并构造输出目录 ============ #
 parser = argparse.ArgumentParser()
@@ -79,18 +80,18 @@ def main(args):
 
 
     
-    # === TorchScript 编译 ===
+    # === TorchScript  ===
+    saved_scripted_model_path = '/work/sustcsc_11/DiT-SUSTCSC/pretrained_models/DiT-XL-2_scripted.pt'
     try:
-        scripted_model = torch.jit.script(model)
-        print("✅ TorchScript 编译成功")
-        # 保存脚本模型
-        torch.jit.save(scripted_model, os.path.join(job_dir, f"{args.model.replace('/', '-')}_scripted.pt"))
-        print("📦 脚本模型已保存")
-        model = scripted_model
+        model = torch.jit.load(saved_scripted_model_path)
+        model.to(device)
+        model.eval()
+        print("✅ 成功加载已编译的 TorchScript 模型，无需再次编译")
     except Exception as e:
-        print("❌ TorchScript 编译失败:", e)
+        print("❌ 加载已编译模型失败，需要重新编译:", e)
         return
-    
+
+
     diffusion = create_diffusion(str(args.num_sampling_steps))
     vae = AutoencoderKL.from_pretrained(f"pretrained_models/sd-vae-ft-{args.vae}").to(device)
 
@@ -109,7 +110,6 @@ def main(args):
     #         with_stack=True
     #     ) as prof:
 
-    
     start_time = time.time()
 
     # Create sampling noise:
@@ -124,17 +124,19 @@ def main(args):
     model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
 
     # Run sampling:
-    samples = diffusion.p_sample_loop(
-        model.forward_with_cfg,
-        z.shape,
-        z,
-        clip_denoised=False,
-        model_kwargs=model_kwargs,
-        progress=True,
-        device=device
-    )
-    samples, _ = samples.chunk(2, dim=0) # Remove null class samples
-    samples = vae.decode(samples / 0.18215).sample
+    with autocast("cuda",enabled = True):
+        samples = diffusion.p_sample_loop(
+            model.forward_with_cfg,
+            z.shape,
+            z,
+            clip_denoised=False,
+            model_kwargs=model_kwargs,
+            progress=True,
+            device=device
+        )
+            
+        samples, _ = samples.chunk(2, dim=0)  # Remove null class samples
+        samples = vae.decode(samples / 0.18215).sample
     end_time = time.time()
 
     # prof.step()
@@ -145,7 +147,6 @@ def main(args):
     save_image(samples, out_path, nrow=4, normalize=True, value_range=(-1, 1))
    
     print(f"Image saved: {out_path}", flush=True)
-    print(f"Profiler logs saved to: {log_dir}", flush=True)
     print(f"⏱️ sampling time: {end_time - start_time:.4f} seconds")
 
 
