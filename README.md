@@ -1,5 +1,7 @@
 # SUSTCSC-DiT 图像生成挑战说明
 
+本Repo为2025年SUSTech SuperComputing Competition 的DiT赛题。此赛题我们队伍获得了单项奖。以下为原始赛题说明。
+
 > 本Repo Fork自「Scalable Diffusion Models with Transformers」的[官方实现库](https://github.com/facebookresearch/DiT)，遵循原Repo的[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)协议。
 
 ## 代码结构
